@@ -1,0 +1,58 @@
+{
+  "name": "asterisk-audiosocket",
+  "version": "0.1.0",
+  "description": "Dependency-free Asterisk AudioSocket protocol implementation for Node.js. TypeScript types, framed slin16 codec, paced playback, barge-in.",
+  "keywords": [
+    "asterisk",
+    "audiosocket",
+    "voip",
+    "telephony",
+    "sip",
+    "voice",
+    "voicebot",
+    "slin16",
+    "pcm",
+    "rtp",
+    "ai-voice-agent",
+    "speech",
+    "ivr"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "Tahir Almas (ICT Innovations)",
+  "license": "MIT",
+  "homepage": "https://github.com/ictinnovations/asterisk-audiosocket#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ictinnovations/asterisk-audiosocket.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ictinnovations/asterisk-audiosocket/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
