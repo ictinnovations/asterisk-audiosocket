@@ -4,7 +4,7 @@
 [![CI](https://github.com/ictinnovations/asterisk-audiosocket/actions/workflows/ci.yml/badge.svg)](https://github.com/ictinnovations/asterisk-audiosocket/actions)
 [![license](https://img.shields.io/npm/l/asterisk-audiosocket.svg)](./LICENSE)
 
-A tiny, **zero-dependency TypeScript implementation of the Asterisk [AudioSocket](https://docs.asterisk.org/Configuration/Channel-Drivers/AudioSocket/) protocol.** Point Asterisk's `AudioSocket()` dialplan app at a Node.js process and receive the caller's audio as PCM, send audio back, and react to the call lifecycle — the plumbing for voice bots, AI voice agents, live transcription, call recording, and real-time media processing.
+A tiny, **zero-dependency TypeScript implementation of the Asterisk [AudioSocket](https://docs.asterisk.org/Configuration/Channel-Drivers/AudioSocket/) protocol.** Point Asterisk's `AudioSocket()` dialplan app at a Node.js process and receive the caller's audio as PCM, send audio back, and react to the call lifecycle. It is the plumbing for voice bots, AI voice agents, live transcription, call recording, and real-time media processing.
 
 ```ts
 import { AudioSocketServer } from 'asterisk-audiosocket';
@@ -22,9 +22,9 @@ await server.listen();
 
 ## Why
 
-AudioSocket is the easiest way to get a live Asterisk call into your own code — it's just a TCP socket carrying framed 8 kHz PCM. The catch is that everyone ends up re-implementing the byte protocol by hand, and most people get the outbound pacing wrong the first time, so callers hear only the tail end of each phrase. This library saves you both: a typed codec, an event-driven server, and a paced writer that actually works.
+AudioSocket is the easiest way to get a live Asterisk call into your own code, because it's just a TCP socket carrying framed 8 kHz PCM. The catch is that everyone ends up re-implementing the byte protocol by hand, and most people get the outbound pacing wrong the first time, so callers hear only the tail end of each phrase. This library saves you both: a typed codec, an event-driven server, and a paced writer that actually works.
 
-It has no runtime dependencies — just Node's own `net` and `events`. It handles the whole protocol (UUID, AUDIO, HANGUP, ERROR) including reassembling frames that arrive split across TCP reads. And `play()` meters audio to the 20 ms frame clock with a per-frame deadline clamp, so a slow synthesizer can't make it burst and overrun the far end's jitter buffer. Written in TypeScript, ships ESM plus type declarations, works fine from plain JS.
+It has no runtime dependencies, just Node's own `net` and `events`. It handles the whole protocol (UUID, AUDIO, HANGUP, ERROR) including reassembling frames that arrive split across TCP reads. And `play()` meters audio to the 20 ms frame clock with a per-frame deadline clamp, so a slow synthesizer can't make it burst and overrun the far end's jitter buffer. Written in TypeScript, ships ESM plus type declarations, works fine from plain JS.
 
 ## Install
 
@@ -36,13 +36,13 @@ Requires Node.js ≥ 18. Requires Asterisk built with `app_audiosocket` (Asteris
 
 ## The protocol in one paragraph
 
-AudioSocket runs over TCP. Every message is a 3-byte header — 1 byte type, 2 bytes big-endian payload length — followed by the payload:
+AudioSocket runs over TCP. Every message is a 3-byte header (1 byte type, then 2 bytes of big-endian payload length) followed by the payload:
 
 | Type | Byte | Payload |
 |------|------|---------|
 | `HANGUP` | `0x00` | none |
-| `UUID`   | `0x01` | 16 raw bytes — the id from `AudioSocket(<uuid>,host:port)` |
-| `AUDIO`  | `0x10` | signed-linear 16-bit, 8 kHz, mono (**slin16**) — 320 bytes per 20 ms |
+| `UUID`   | `0x01` | 16 raw bytes, the id from `AudioSocket(<uuid>,host:port)` |
+| `AUDIO`  | `0x10` | signed-linear 16-bit, 8 kHz, mono (**slin16**), 320 bytes per 20 ms |
 | `ERROR`  | `0xff` | 1 byte error code |
 
 Audio is **always slin16 @ 8 kHz mono**: one 20 ms frame is exactly 320 bytes. Resample your TTS/STT to that. Constants `FRAME_BYTES` (320), `FRAME_MS` (20), and `SAMPLE_RATE` (8000) are exported.
@@ -50,13 +50,13 @@ Audio is **always slin16 @ 8 kHz mono**: one 20 ms frame is exactly 320 bytes. R
 ## Dialplan
 
 ```asterisk
-; extensions.conf — bridge a call to the Node process
+; extensions.conf: bridge a call to the Node process
 exten => s,1,Answer()
  same => n,AudioSocket(${UUID},127.0.0.1:9092)   ; UUID must be canonical 8-4-4-4-12
  same => n,Hangup()
 ```
 
-`AudioSocket()`'s first argument is a UUID it sends to you as the first frame — use it to correlate the call. A common pattern is to derive it deterministically: `Set(UUID=${SHA1(${UNIQUEID})...})` formatted 8-4-4-4-12, and pre-register call context out-of-band keyed by that UUID.
+`AudioSocket()`'s first argument is a UUID it sends to you as the first frame. Use it to correlate the call. A common pattern is to derive it deterministically: `Set(UUID=${SHA1(${UNIQUEID})...})` formatted 8-4-4-4-12, and pre-register call context out-of-band keyed by that UUID.
 
 ## API
 
@@ -64,13 +64,13 @@ exten => s,1,Answer()
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `host` | `127.0.0.1` | Bind address — keep AudioSocket loopback-only. |
+| `host` | `127.0.0.1` | Bind address. Keep AudioSocket loopback-only. |
 | `port` | `9092` | TCP port Asterisk dials. |
 
-- `await server.listen()` — start accepting calls.
-- `server.on('connection', (call) => …)` — a new call arrived.
+- `await server.listen()` starts accepting calls.
+- `server.on('connection', (call) => …)` fires when a new call arrives.
 - `server.address` → `{ host, port }` (resolve the real port when you bind to `0`).
-- `await server.close()` — stop.
+- `await server.close()` stops the server.
 
 ### `AudioSocketConnection` (one per call)
 
@@ -80,16 +80,16 @@ Events:
 |-------|-----|------|
 | `id` | `uuid: string` | UUID frame received (canonical 8-4-4-4-12). |
 | `audio` | `pcm: Buffer` | One 320-byte slin16 frame of caller audio. |
-| `hangup` | — | Asterisk hung up or the socket closed. Fires once. |
+| `hangup` | none | Asterisk hung up or the socket closed. Fires once. |
 | `error` | `err: Error` | ERROR frame or a socket/decode error. |
 
 Methods:
 
-- `call.play(pcm: Buffer): Promise<void>` — queue arbitrary-length slin16 for **paced** playback (320-byte frames, one per 20 ms). Calls concatenate, so you can stream TTS chunks in as they arrive. Resolves when this buffer has finished playing. **Use this for anything longer than one frame.**
-- `call.writeFrame(pcm320: Buffer)` — send a single raw 320-byte frame, unpaced.
-- `call.flushPlayback()` — drop queued audio (barge-in / interrupt).
-- `call.hangup()` — send a HANGUP frame and close.
-- `call.uuid` / `call.remoteAddress` — call id and peer, for logging.
+- `call.play(pcm: Buffer): Promise<void>` queues arbitrary-length slin16 for **paced** playback (320-byte frames, one per 20 ms). Calls concatenate, so you can stream TTS chunks in as they arrive. Resolves when this buffer has finished playing. **Use this for anything longer than one frame.**
+- `call.writeFrame(pcm320: Buffer)` sends a single raw 320-byte frame, unpaced.
+- `call.flushPlayback()` drops queued audio (barge-in / interrupt).
+- `call.hangup()` sends a HANGUP frame and closes.
+- `call.uuid` and `call.remoteAddress` give the call id and peer, for logging.
 
 ### Low-level codec
 
@@ -97,20 +97,20 @@ For custom transports/testing: `FrameParser`, `encodeFrame`, `encodeAudio`, `enc
 
 ## Recipes
 
-**Live transcription** — feed `audio` frames to your STT of choice (Whisper, Deepgram, Vosk):
+**Live transcription.** Feed `audio` frames to your STT of choice (Whisper, Deepgram, Vosk):
 
 ```ts
 call.on('audio', (pcm) => stt.write(pcm)); // pcm is slin16 8 kHz mono
 ```
 
-**Speak text back** — synthesize to slin16 @ 8 kHz, then `play()`:
+**Speak text back.** Synthesize to slin16 @ 8 kHz, then `play()`:
 
 ```ts
 const pcm = await tts.synthesize('Hello!'); // resample to 8 kHz mono s16le
 await call.play(pcm);
 ```
 
-**Barge-in** — stop talking the moment the caller does:
+**Barge-in.** Stop talking the moment the caller does:
 
 ```ts
 call.on('audio', (pcm) => { if (isSpeech(pcm)) call.flushPlayback(); });
@@ -151,4 +151,4 @@ Questions about the commercial products go through [the ICT Innovations support 
 
 ## License
 
-[MIT](./LICENSE) — © Tahir Almas / ICT Innovations, derived from ICTContact.
+[MIT](./LICENSE). © Tahir Almas / ICT Innovations, derived from ICTContact.
